@@ -1,0 +1,24 @@
+name: RTL simulation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog
+      - name: Compile testbench
+        run: |
+          iverilog -g2012 -s bitonic_sorter_tb -o sorter_tb \
+            rtl/modules/compare_swap.v \
+            rtl/modules/bitonic_merge4.v \
+            rtl/modules/bitonic_merge8.v \
+            rtl/bitonic_sort4.v \
+            rtl/bitonic_sort8.v \
+            tb/bitonic_sorter_tb.v
+      - name: Run testbench
+        run: vvp sorter_tb
