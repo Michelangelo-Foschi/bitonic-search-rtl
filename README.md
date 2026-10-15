@@ -80,11 +80,14 @@ synthesis hints; they do not by themselves lock placement or routing.
 
 ## Simulation
 
-Install Icarus Verilog and run from the repository root:
+Install Icarus Verilog 13.0 or newer and run from the repository root:
 
 ```sh
 make test
 ```
+
+Older Icarus releases can fail to elaborate a one-element unpacked array port
+(`SIZE=1`). CI builds the pinned 13.0 release so that this case is also tested.
 
 The tests compare every output against an independent reference sort in both
 directions. Coverage includes sizes 1, 2, 3, 4, 5, 7, 8, 9, 10, 16, 17, 32,

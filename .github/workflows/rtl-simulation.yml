@@ -9,7 +9,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Icarus Verilog
-        run: sudo apt-get update && sudo apt-get install -y iverilog
+      - name: Install simulator build dependencies
+        run: sudo apt-get update && sudo apt-get install -y autoconf bison flex g++ gperf make
+      - name: Get Icarus Verilog 13.0
+        uses: actions/checkout@v4
+        with:
+          repository: steveicarus/iverilog
+          ref: dfeee909ed9f20b4870dd93423156c0170c0e1ff # v13_0
+          path: build/iverilog-source
+          persist-credentials: false
+      - name: Build Icarus Verilog 13.0
+        working-directory: build/iverilog-source
+        run: |
+          sh autoconf.sh
+          ./configure --prefix="$RUNNER_TEMP/iverilog"
+          make -j2
+          make install
+          echo "$RUNNER_TEMP/iverilog/bin" >> "$GITHUB_PATH"
       - name: Test fixed and parameterized sorters
         run: make test
