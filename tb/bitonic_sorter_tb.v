@@ -66,7 +66,7 @@ module bitonic_sorter_tb;
                 if (out4[k] !== ref4[k]) begin
                     $display("FAIL sort4 test %0d output %0d: got %0d expected %0d",
                              test_num, k, out4[k], ref4[k]);
-                    $finish;
+                    $fatal(1);
                 end
         end
     endtask
@@ -79,7 +79,7 @@ module bitonic_sorter_tb;
                 if (out8[k] !== ref8[k]) begin
                     $display("FAIL sort8 test %0d output %0d: got %0d expected %0d",
                              test_num, k, out8[k], ref8[k]);
-                    $finish;
+                    $fatal(1);
                 end
         end
     endtask
@@ -110,4 +110,3 @@ module bitonic_sorter_tb;
         $finish;
     end
 endmodule
-
