@@ -1,5 +1,12 @@
 # Parameterized Hierarchical Bitonic Sorter
 
+For clocked scaling experiments, see [V80 retiming and pipeline search](docs/v80_timing.md).
+The new `bitonic_timing_top` supports additional output or distributed register
+banks, with Tcl scripts to search for a minimum budget at **500 MHz on V80**
+through **1024 inputs x 64 bits (eight bytes)**. Streaming functionality is
+simulated; actual V80 timing closure requires running Vivado on the target.
+The combinational interface below remains available unchanged.
+
 `bitonic_sort` sorts an array of `SIZE` unsigned values, each `WIDTH` bits wide.
 Set `SIZE` to any positive input count; the generated hardware scales
 automatically. `ASCENDING=1` puts the smallest value at `out[0]`, while

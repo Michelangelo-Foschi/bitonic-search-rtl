@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install simulator build dependencies
-        run: sudo apt-get update && sudo apt-get install -y autoconf bison flex g++ gperf make
+        run: sudo apt-get update && sudo apt-get install -y autoconf bison flex g++ gperf make tcl
       - name: Get Icarus Verilog 13.0
         uses: actions/checkout@v4
         with:
@@ -26,5 +26,5 @@ jobs:
           make -j2
           make install
           echo "$RUNNER_TEMP/iverilog/bin" >> "$GITHUB_PATH"
-      - name: Test fixed and parameterized sorters
+      - name: Test combinational, streaming, 1024-input scaling, and search scripts
         run: make test
