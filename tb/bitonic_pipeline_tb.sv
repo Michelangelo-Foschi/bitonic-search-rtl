@@ -34,14 +34,17 @@ module pipeline_checker #(
         for (integer sample = 0; sample < TRANSACTIONS+LATENCY+3; sample++) begin
             @(negedge clk);
             rst = (sample == 0 || sample == 6);
-            in_valid = sample < TRANSACTIONS && sample % 4 != 1;
+            in_valid = sample < TRANSACTIONS &&
+                ((sample >= 8 && sample <= 12) || sample % 4 != 1);
             for (integer lane = 0; lane < SIZE; lane++) begin
                 case (sample)
-                    0: value = '0;
-                    1: value = '1;
-                    2: value = WIDTH'(SIZE-1-lane);
-                    3: value = WIDTH'(lane % 3);
-                    4: begin value = WIDTH'(lane); value[WIDTH-1] = (lane % 2 == 0); end
+                    // These valid directed vectors follow the mid-stream reset,
+                    // so even the 56-stage pipeline must eventually check them.
+                    8: value = '0;
+                    9: value = '1;
+                    10: value = WIDTH'(SIZE-1-lane);
+                    11: value = WIDTH'(lane % 3);
+                    12: begin value = WIDTH'(lane); value[WIDTH-1] = (lane % 2 == 0); end
                     default: for (integer digit = 0; digit < WIDTH; digit++) value[digit] = 1'($urandom);
                 endcase
                 in_flat[lane*WIDTH +: WIDTH] = value;
