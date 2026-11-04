@@ -50,4 +50,14 @@ foreach mode {monotonic nonmonotonic resource no_solution tool_error} {
     }
     if {![catch {exec [info nameofexecutable] $driver -sizes {8} -out $dest 2>@1}]} {error "Results were overwritten"}
 }
+# -io 0 must time only internal paths: clock constraint kept, no port delays.
+set env(BITONIC_TEST_MODE) monotonic
+set dest [file join $scratch io_off]
+exec [info nameofexecutable] $driver -sizes {8} -io 0 -out $dest 2>@1
+set channel [open [file join $dest size_8 extra_0 timing.xdc] r]
+set constraints [read $channel]
+close $channel
+if {[string first {create_clock -name core_clk -period 2.000000000} $constraints] < 0} {error "-io 0 dropped the clock"}
+if {[string first set_input_delay $constraints] >= 0 || [string first set_output_delay $constraints] >= 0} {error "-io 0 still constrains ports"}
+if {![catch {exec [info nameofexecutable] $driver -sizes {8} -io 2 -dry_run 1 2>@1}]} {error "-io 2 was accepted"}
 puts "PASS: driver/runner orchestration, reports, failures, minima, 500 MHz constraints (mock tool only)"

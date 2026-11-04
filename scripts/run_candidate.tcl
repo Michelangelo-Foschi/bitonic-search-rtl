@@ -5,7 +5,7 @@ source [file join $script_dir timing_common.tcl]
 set cfg [bt::options [dict create \
     -part xcv80-lsva4737-2MHP-e-S -mhz 500 -size 8 -width 64 -extra 0 \
     -layout distributed -retime 1 -uncertainty 0.1 -io_delay 0.2 \
-    -margin 0.0 -threads 8 -out {}] {*}$argv]
+    -margin 0.0 -threads 8 -io 1 -out {}] {*}$argv]
 set out [dict get $cfg -out]
 if {$out eq ""} {error "-out is required"}
 if {[file exists [file join $out result.tcl]]} {error "Refusing to overwrite an existing candidate result: $out"}
@@ -27,6 +27,7 @@ set failed [catch {
         if {![string is double -strict $value] || $value < 0} {error "$key must be a nonnegative number"}
     }
     if {[dict get $cfg -mhz] <= 0} {error "-mhz must be positive"}
+    if {[dict get $cfg -io] ni {0 1}} {error "-io must be 0 or 1"}
     set period [expr {1000.0/[dict get $cfg -mhz]}]
     set part [dict get $cfg -part]
     if {![llength [get_parts -quiet $part]]} {error "Part $part is unavailable; install V80 device support/license or override -part"}
@@ -41,11 +42,16 @@ set failed [catch {
     set fh [open $xdc w]
     puts $fh [format {create_clock -name core_clk -period %.9f [get_ports clk]} $period]
     puts $fh [format {set_clock_uncertainty %.9f [get_clocks core_clk]} [dict get $cfg -uncertainty]]
-    puts $fh {set data_in [get_ports -filter {DIRECTION == IN && NAME != clk}]}
-    puts $fh [format {set_input_delay -clock core_clk -max %.9f $data_in} [dict get $cfg -io_delay]]
-    puts $fh {set_input_delay -clock core_clk -min 0.0 $data_in}
-    puts $fh [format {set_output_delay -clock core_clk -max %.9f [all_outputs]} [dict get $cfg -io_delay]]
-    puts $fh {set_output_delay -clock core_clk -min 0.0 [all_outputs]}
+    # -io 0 leaves the ports unconstrained so only register-to-register paths
+    # inside the core are timed. In OOC, the ~3 ns clock insertion delay is not
+    # modeled at the ports, so port delays would otherwise dominate setup/hold.
+    if {[dict get $cfg -io]} {
+        puts $fh {set data_in [get_ports -filter {DIRECTION == IN && NAME != clk}]}
+        puts $fh [format {set_input_delay -clock core_clk -max %.9f $data_in} [dict get $cfg -io_delay]]
+        puts $fh {set_input_delay -clock core_clk -min 0.0 $data_in}
+        puts $fh [format {set_output_delay -clock core_clk -max %.9f [all_outputs]} [dict get $cfg -io_delay]]
+        puts $fh {set_output_delay -clock core_clk -min 0.0 [all_outputs]}
+    }
     close $fh
     read_xdc $xdc
 
