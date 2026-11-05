@@ -4,7 +4,7 @@ set script_dir [file dirname [file normalize [info script]]]
 source [file join $script_dir timing_common.tcl]
 set cfg [bt::options [dict create \
     -part xcv80-lsva4737-2MHP-e-S -mhz 500 -size 8 -width 64 -extra 0 \
-    -layout distributed -retime 1 -uncertainty 0.1 -io_delay 0.2 \
+    -layout tail -retime 1 -uncertainty 0.1 -io_delay 0.2 \
     -margin 0.0 -threads 8 -io 1 -out {}] {*}$argv]
 set out [dict get $cfg -out]
 if {$out eq ""} {error "-out is required"}

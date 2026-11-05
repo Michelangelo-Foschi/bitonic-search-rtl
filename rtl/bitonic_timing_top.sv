@@ -7,7 +7,7 @@ module bitonic_timing_top #(
     parameter integer SIZE = 8,
     parameter bit ASCENDING = 1'b1,
     parameter integer EXTRA_REGS = 0,
-    parameter bit DISTRIBUTE = 1'b1
+    parameter bit DISTRIBUTE = 1'b0
 ) (
     input wire clk,
     input wire rst,

@@ -2,11 +2,11 @@
 set script_dir [file dirname [file normalize [info script]]]
 source [file join $script_dir timing_common.tcl]
 if {[lsearch -exact $argv -help] >= 0} {
-    puts {Usage: tclsh scripts/timing_search.tcl ?-sizes {8 16 ... 1024}? ?-width 64? ?-mhz 500? ?-layout distributed|tail? ?-max_extra auto|N? ?-verify_min 1|0? ?-io 1|0? ?-out NEW_DIRECTORY? ?-dry_run 1?}
+    puts {Usage: tclsh scripts/timing_search.tcl ?-sizes {8 16 ... 1024}? ?-width 64? ?-mhz 500? ?-layout tail|distributed (default: tail)? ?-max_extra auto|N? ?-verify_min 1|0? ?-io 1|0? ?-out NEW_DIRECTORY? ?-dry_run 1?}
     exit 0
 }
 set cfg [bt::options [dict create -part xcv80-lsva4737-2MHP-e-S -mhz 500 \
-    -sizes {8 16 32 64 128 256 512 1024} -width 64 -layout distributed \
+    -sizes {8 16 32 64 128 256 512 1024} -width 64 -layout tail \
     -max_extra auto -verify_min 1 -retime 1 -uncertainty 0.1 -io_delay 0.2 \
     -margin 0.0 -threads 8 -io 1 -dry_run 0 -out {}] {*}$argv]
 

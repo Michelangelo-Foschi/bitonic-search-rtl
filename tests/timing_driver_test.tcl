@@ -21,6 +21,7 @@ foreach mode {monotonic nonmonotonic resource no_solution tool_error} {
     if {[llength $lines] != 3} {error "Expected two size summaries in $mode"}
     foreach line [lrange $lines 1 end] {
         set columns [split [string map {\" {}} $line] ,]
+        if {[lindex $columns 2] ne "tail"} {error "Default search must use tail placement: $line"}
         set best [lindex $columns 4]
         set status [lindex $columns 8]
         if {$mode eq "tool_error"} {
@@ -36,6 +37,14 @@ foreach mode {monotonic nonmonotonic resource no_solution tool_error} {
     source [file join $dest size_8 extra_0 result.tcl]
     if {$mode ne "tool_error" && ([dict get $result vivado_version] ne "MOCK_TEST_ONLY" || [dict get $result period_ns] != 2.0)} {error "Runner did not use the correct target"}
     if {$mode ne "tool_error"} {
+        source [file join $dest size_8 extra_0 mock_synth_args.tcl]
+        set generic_index [lsearch -exact $mock_synth_args -generic]
+        set generics [lindex $mock_synth_args [expr {$generic_index+1}]]
+        if {[lsearch -exact $generics DISTRIBUTE=0] < 0 ||
+            [lsearch -exact $mock_synth_args -retiming] < 0 ||
+            [lsearch -exact $mock_synth_args -no_srlextract] < 0} {
+            error "Default runner must append output banks and enable retiming: $mock_synth_args"
+        }
         set channel [open [file join $dest size_8 extra_0 timing.xdc] r]
         set constraints [read $channel]
         close $channel
@@ -60,4 +69,32 @@ close $channel
 if {[string first {create_clock -name core_clk -period 2.000000000} $constraints] < 0} {error "-io 0 dropped the clock"}
 if {[string first set_input_delay $constraints] >= 0 || [string first set_output_delay $constraints] >= 0} {error "-io 0 still constrains ports"}
 if {![catch {exec [info nameofexecutable] $driver -sizes {8} -io 2 -dry_run 1 2>@1}]} {error "-io 2 was accepted"}
-puts "PASS: driver/runner orchestration, reports, failures, minima, 500 MHz constraints (mock tool only)"
+
+# Check the single-candidate entry point independently, without a -layout flag.
+set env(BITONIC_TEST_MODE) monotonic
+set single [file join $scratch default-tail10]
+exec [file join $scratch bin vivado] -source [file join $test_root scripts run_candidate.tcl] \
+    -tclargs -size 8 -width 64 -extra 10 -out $single 2>@1
+source [file join $single result.tcl]
+source [file join $single mock_synth_args.tcl]
+set generic_index [lsearch -exact $mock_synth_args -generic]
+if {[dict get $result internal] != 0 || [dict get $result tail] != 10 ||
+    [dict get $result latency] != 12 ||
+    [lsearch -exact [lindex $mock_synth_args [expr {$generic_index+1}]] DISTRIBUTE=0] < 0} {
+    error "Single-candidate default did not keep all ten extra banks at the output"
+}
+
+# The frequency-search entry point must propagate the same default to its
+# candidate probes and nested register-budget search.
+set frequency_out [file join $scratch default-frequency-tail]
+exec [info nameofexecutable] [file join $test_root scripts fmax_search.tcl] \
+    -sizes {8} -out $frequency_out 2>@1
+source [file join $frequency_out config.tcl]
+if {[dict get $configuration -layout] ne "tail"} {error "Frequency search did not default to tail"}
+source [file join $frequency_out size_8 probe_500mhz result.tcl]
+if {[dict get $result internal] != 0 || [dict get $result tail] != 5} {
+    error "Frequency-search probe inserted internal banks"
+}
+source [file join $frequency_out size_8 search_500mhz config.tcl]
+if {[dict get $configuration -layout] ne "tail"} {error "Nested search did not keep tail placement"}
+puts "PASS: driver/runner orchestration, default tail placement, retiming flags, reports, failures, minima, 500 MHz constraints (mock tool only)"

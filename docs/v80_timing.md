@@ -22,7 +22,7 @@ by the teammate is retained unchanged.
 ```systemverilog
 bitonic_timing_top #(
     .SIZE(1024), .WIDTH(64),
-    .EXTRA_REGS(20), .DISTRIBUTE(1)
+    .EXTRA_REGS(20), .DISTRIBUTE(0)
 ) sorter (
     .clk(clk), .rst(rst),
     .in_valid(in_valid), .in_flat(in_flat),
@@ -36,20 +36,36 @@ One bank at 1024 x 64 is 65,536 data flip-flops before synthesis/retiming.
 
 | Mode | What the RTL generates |
 | --- | --- |
-| `DISTRIBUTE=0` / `-layout tail` | All additional banks after the output. Vivado retiming may move registers into the combinational logic. |
-| `DISTRIBUTE=1` / `-layout distributed` | Balanced register cuts between comparator levels. Budgets exceeding the available internal boundaries become additional output banks. Vivado can further retime the result. |
+| `DISTRIBUTE=0` / `-layout tail` **(default)** | All additional banks after the output. Vivado retiming may move registers into the combinational logic. No internal register cuts are generated in RTL. |
+| `DISTRIBUTE=1` / `-layout distributed` **(explicit comparison only)** | Balanced register cuts between comparator levels. Budgets exceeding the available internal boundaries become additional output banks. Vivado can further retime the result. |
 
-For six comparator levels and two additional banks, distributed cuts follow
-levels 2 and 4. For 55 levels and 54 additional banks, every comparator level
-is followed by a register bank, including the mandatory final output bank.
+The default structure is:
+
+```text
+input bank -> all comparator logic -> output bank -> EXTRA_REGS output banks
+```
+
+For an eight-input sorter with `EXTRA_REGS=10`, all ten additional banks are
+at the output before retiming; none are placed between comparator levels by
+the RTL. The mandatory input/output banks make 12 registered sampling stages.
+The default is the same in both RTL modules and all three Tcl entry points
+(`timing_search.tcl`, `run_candidate.tcl`, and `fmax_search.tcl`).
+Previously generated checkpoints retain their original layout; rebuild in a
+new output directory. An explicit `DISTRIBUTE=1` or `-layout distributed`
+override still selects the comparison mode.
+
+In that optional distributed mode, six comparator levels and two additional
+banks produce cuts after levels 2 and 4. For 55 levels and 54 additional banks,
+every comparator level is followed by a bank, including the mandatory output.
 At zero additional banks, both modes reduce to the registered combinational
 core: input bank -> all comparator levels -> output bank.
 
 Appending output banks by itself adds latency and does not shorten the
-unretimed comparator path. The tail experiment tests whether the implementation
-tool can redistribute those registers. The distributed mode provides explicit
-RTL boundaries even when tail retiming is unsuccessful. An aggressive clock
-may still require retiming inside comparators or a different architecture.
+unretimed comparator path. The default tail experiment tests whether the
+implementation tool can redistribute those registers automatically. The
+distributed mode is a separate comparison with explicit RTL boundaries. An
+aggressive clock may still require retiming inside comparators or a different
+architecture.
 
 Data registers have no reset or clock enable, and shift-register extraction is
 disabled. This keeps them eligible for retiming. `rst` synchronously clears
@@ -86,18 +102,18 @@ In a shell, protect a multi-value `-sizes` argument with quotes:
 ```sh
 tclsh scripts/timing_search.tcl \
   -sizes '8 16 32' -width 64 -mhz 500 \
-  -layout distributed -out build/v80-pilot-500
+  -layout tail -out build/v80-pilot-500
 ```
 
 Full scaling sweep, sizes 8, 16, 32, 64, 128, 256, 512, 1024:
 
 ```sh
 tclsh scripts/timing_search.tcl \
-  -layout distributed -out build/v80-distributed-500
-
-tclsh scripts/timing_search.tcl \
   -layout tail -out build/v80-tail-500
 ```
+
+For a separate comparison using explicit internal RTL cuts, pass
+`-layout distributed` and choose a different output directory.
 
 The target part and frequency default to the requested V80 and 500 MHz.
 For eight **bits** rather than eight bytes, explicitly pass `-width 8`.
@@ -109,7 +125,7 @@ Compile one chosen candidate directly:
 
 ```sh
 vivado -mode batch -source scripts/run_candidate.tcl -tclargs \
-  -size 1024 -width 64 -extra 54 -layout distributed \
+  -size 1024 -width 64 -extra 54 -layout tail \
   -mhz 500 -out build/v80-1024-extra54
 ```
 
@@ -120,6 +136,7 @@ Useful search options:
 | `-part` | `xcv80-lsva4737-2MHP-e-S` | Exact Vivado part; checked before synthesis. |
 | `-mhz` | `500` | Required clock frequency. |
 | `-width` | `64` | Unsigned comparison width in bits. |
+| `-layout` | `tail` | Append all extra banks at the output and let Vivado retime them. `distributed` explicitly opts into internal RTL cuts. |
 | `-max_extra` | `auto` | Search up to levels minus one. Override, e.g. `80`, for a larger budget. |
 | `-verify_min` | `1` | Check every smaller candidate before reporting a minimum. |
 | `-retime` | `1` | Synthesis retiming and post-place `AddRetime`; `0` disables both for comparison. |
@@ -136,8 +153,9 @@ Useful search options:
 4. By default, evaluate every smaller count before reporting a minimum. If no
    bracket passes, check untested counts across the bounded domain.
 
-Placement/routing can be non-monotonic, and changing the register count changes
-cut locations. Binary search alone cannot prove minimality. `-verify_min 0`
+Placement/routing can be non-monotonic as the register budget changes. In the
+optional distributed mode, RTL cut locations also change. Binary search alone
+cannot prove minimality. `-verify_min 0`
 skips exhaustive confirmation and explicitly records an **unverified** result.
 The reported minimum applies only to this placement rule, tool/constraints,
 device, and measured runs; it is not a globally optimal retiming solution or
@@ -185,7 +203,7 @@ each result records the part and Vivado version. Failed candidates have an
 | 512 | 45 | 11,520 | 44 |
 | 1024 | 55 | 28,160 | 54 |
 
-The full 1024 x 64 distributed pipeline has an RTL data-register upper bound
+The 1024 x 64 sorter with 54 extra banks has an RTL data-register upper bound
 of **3,670,016 FFs**, plus validity. Synthesis may change this. LUT/FF capacity,
 SLR crossings and routing may limit feasibility before the clock target is met.
 Adding registers does not guarantee fit or timing closure.
@@ -195,8 +213,9 @@ Adding registers does not guarantee fit or timing closure.
 `make test` runs the original combinational regressions, streaming tests for
 ascending/descending output, high 64-bit values, duplicate values, non-power-of-
 two counts, tail/distributed budgets, bubbles, reset flushing and exact latency.
-It includes 512 x 64 and 1024 x 64 simulations. The 1024 case uses 54 additional
-distributed banks; simulation confirms functionality, not physical timing.
+It includes a ten-extra-bank check with the default layout, and 512 x 64 and
+1024 x 64 simulations. The 1024 case uses 54 additional output banks;
+simulation confirms functionality, not physical timing.
 
 Pure Tcl tests verify search results across monotonic and non-monotonic timing
 fixtures. A separate mock-tool integration test executes the real driver and

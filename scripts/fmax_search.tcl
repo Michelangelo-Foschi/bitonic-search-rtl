@@ -3,20 +3,20 @@
 # Vivado's settings64.sh. Reuses run_candidate.tcl and timing_search.tcl.
 #
 # Per size:
-#   1. Probe the fully pipelined design (extra = levels-1) at -start_mhz.
+#   1. Probe the maximum-budget design (extra = levels-1) at -start_mhz.
 #   2. If it fails, estimate Fmax from its setup slack, round down to the step,
-#      and probe again there. Keep lowering until the full pipeline passes or
+#      and probe again there. Keep lowering until that design passes or
 #      -min_mhz is reached. Each new target is always lower than the last.
 #   3. At the first passing clock, run timing_search.tcl to find the minimum
 #      extra banks for that clock.
 set script_dir [file dirname [file normalize [info script]]]
 source [file join $script_dir timing_common.tcl]
 if {[lsearch -exact $argv -help] >= 0} {
-    puts {Usage: tclsh scripts/fmax_search.tcl ?-sizes {8 16}? ?-width 64? ?-start_mhz 500? ?-step_mhz 5? ?-min_mhz 50? ?-layout distributed|tail? ?-io 0|1? ?-verify_min 1|0? ?-out NEW_DIRECTORY?}
+    puts {Usage: tclsh scripts/fmax_search.tcl ?-sizes {8 16}? ?-width 64? ?-start_mhz 500? ?-step_mhz 5? ?-min_mhz 50? ?-layout tail|distributed (default: tail)? ?-io 0|1? ?-verify_min 1|0? ?-out NEW_DIRECTORY?}
     exit 0
 }
 set cfg [bt::options [dict create -part xcv80-lsva4737-2MHP-e-S \
-    -sizes {8 16} -width 64 -layout distributed -start_mhz 500 -step_mhz 5 \
+    -sizes {8 16} -width 64 -layout tail -start_mhz 500 -step_mhz 5 \
     -min_mhz 50 -io 0 -verify_min 1 -retime 1 -uncertainty 0.1 -io_delay 0.2 \
     -threads 8 -out {}] {*}$argv]
 
@@ -52,7 +52,7 @@ proc mhz_text {value} {
     return [string trimright [string trimright $text 0] .]
 }
 
-# One Vivado run of the fully pipelined design at a given clock.
+# One Vivado run of the maximum-budget design at a given clock.
 proc probe {size extra mhz} {
     global cfg script_dir out probes vivado
     set run [file join $out size_$size probe_[mhz_text $mhz]mhz]

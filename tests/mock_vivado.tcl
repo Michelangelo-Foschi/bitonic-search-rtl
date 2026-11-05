@@ -12,6 +12,11 @@ proc version {args} {return MOCK_TEST_ONLY}
 foreach command {set_param read_verilog read_xdc synth_design opt_design phys_opt_design route_design report_route_status report_timing_summary check_timing report_utilization report_drc write_checkpoint} {
     proc $command {args} {}
 }
+proc synth_design {args} {
+    set channel [open [file join [dict get $::mock_cfg -out] mock_synth_args.tcl] w]
+    puts $channel [list set mock_synth_args $args]
+    close $channel
+}
 proc place_design {args} {
     if {$::mode eq "resource" && $::extra == 0} {error "Placement could not place all instances: not enough resources"}
 }

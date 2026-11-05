@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 
-// Streaming unsigned sorter: input bank + EXTRA_REGS banks + output bank.
+// Default: input bank -> combinational sorter -> output bank -> EXTRA_REGS banks.
+// Internal cuts are opt-in; by default Vivado alone redistributes registers.
 // Data registers intentionally have no reset/enable, permitting retiming.
 // rst synchronously flushes only validity; ignore data while out_valid is low.
 module bitonic_sort_pipeline #(
@@ -8,7 +9,7 @@ module bitonic_sort_pipeline #(
     parameter integer SIZE = 8,
     parameter bit ASCENDING = 1'b1,
     parameter integer EXTRA_REGS = 0,
-    parameter bit DISTRIBUTE = 1'b1
+    parameter bit DISTRIBUTE = 1'b0
 ) (
     input wire clk,
     input wire rst,
