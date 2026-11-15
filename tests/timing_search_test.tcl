@@ -23,27 +23,20 @@ proc build_error {candidate} {error "resource or tool failure"}
 assert {[catch {bt::search_minimum 9 build_error}] == 1} "Tool errors must propagate"
 
 foreach size {1 2 3 8 10 16 64 256 512 1024} {
-    foreach layout {tail distributed} {
-        for {set extra 0} {$extra < 60} {incr extra} {
-            set g [bt::geometry $size 64 $extra $layout]
-            assert {[llength [dict get $g cuts]] == [dict get $g internal]}
-            assert {[dict get $g internal]+[dict get $g tail] == $extra}
-            assert {[dict get $g latency] == $extra+2}
-            set gaps {}
-            set last 0
-            foreach cut [concat [dict get $g cuts] [list [dict get $g levels]]] {
-                lappend gaps [expr {$cut-$last}]
-                set last $cut
-            }
-            set ordered [lsort -integer $gaps]
-            assert {[lindex $ordered end]-[lindex $ordered 0] <= 1 || $layout eq "tail"}
-        }
+    for {set extra 0} {$extra < 60} {incr extra} {
+        set g [bt::geometry $size 64 $extra tail]
+        assert {[dict get $g cuts] eq {}}
+        assert {[dict get $g internal] == 0}
+        assert {[dict get $g tail] == $extra}
+        assert {[dict get $g latency] == $extra+2}
     }
 }
-set g [bt::geometry 1024 64 54 distributed]
+set g [bt::geometry 1024 64 54 tail]
 assert {[dict get $g comparators] == 28160}
 assert {[dict get $g levels] == 55}
 assert {[dict get $g data_ff_upper_bound] == 3670016}
-assert {[catch {bt::geometry 8 64 -1 distributed}] == 1}
+assert {[catch {bt::geometry 8 64 -1 tail}] == 1}
+assert {[catch {bt::geometry 8 64 10 distributed} message] == 1}
+assert {[string first "Only tail layout is supported" $message] >= 0}
 assert {[catch {bt::geometry 8 64 1 invalid}] == 1}
-puts "PASS: search minima, non-monotonic timing, error propagation, pipeline geometry"
+puts "PASS: search minima, non-monotonic timing, error propagation, output-only register geometry"

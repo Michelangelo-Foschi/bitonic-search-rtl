@@ -6,8 +6,7 @@ module bitonic_timing_top #(
     parameter integer WIDTH = 64,
     parameter integer SIZE = 8,
     parameter bit ASCENDING = 1'b1,
-    parameter integer EXTRA_REGS = 0,
-    parameter bit DISTRIBUTE = 1'b0
+    parameter integer EXTRA_REGS = 0
 ) (
     input wire clk,
     input wire rst,
@@ -24,7 +23,7 @@ module bitonic_timing_top #(
     end
     bitonic_sort_pipeline #(
         .WIDTH(WIDTH), .SIZE(SIZE), .ASCENDING(ASCENDING),
-        .EXTRA_REGS(EXTRA_REGS), .DISTRIBUTE(DISTRIBUTE)
+        .EXTRA_REGS(EXTRA_REGS)
     ) sorter (
         .clk(clk), .rst(rst), .in_valid(in_valid), .in(input_lanes),
         .out_valid(out_valid), .out(output_lanes)

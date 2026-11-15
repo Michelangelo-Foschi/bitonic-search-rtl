@@ -12,7 +12,7 @@
 set script_dir [file dirname [file normalize [info script]]]
 source [file join $script_dir timing_common.tcl]
 if {[lsearch -exact $argv -help] >= 0} {
-    puts {Usage: tclsh scripts/fmax_search.tcl ?-sizes {8 16}? ?-width 64? ?-start_mhz 500? ?-step_mhz 5? ?-min_mhz 50? ?-layout tail|distributed (default: tail)? ?-io 0|1? ?-verify_min 1|0? ?-out NEW_DIRECTORY?}
+    puts {Usage: tclsh scripts/fmax_search.tcl ?-sizes {8 16}? ?-width 64? ?-start_mhz 500? ?-step_mhz 5? ?-min_mhz 50? ?-layout tail? ?-io 0|1? ?-verify_min 1|0? ?-out NEW_DIRECTORY?}
     exit 0
 }
 set cfg [bt::options [dict create -part xcv80-lsva4737-2MHP-e-S \

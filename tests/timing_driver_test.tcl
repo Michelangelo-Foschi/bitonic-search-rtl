@@ -40,10 +40,11 @@ foreach mode {monotonic nonmonotonic resource no_solution tool_error} {
         source [file join $dest size_8 extra_0 mock_synth_args.tcl]
         set generic_index [lsearch -exact $mock_synth_args -generic]
         set generics [lindex $mock_synth_args [expr {$generic_index+1}]]
-        if {[lsearch -exact $generics DISTRIBUTE=0] < 0 ||
+        if {[lsearch -glob $generics DISTRIBUTE=*] >= 0 ||
+            [lsearch -exact $generics EXTRA_REGS=0] < 0 ||
             [lsearch -exact $mock_synth_args -retiming] < 0 ||
             [lsearch -exact $mock_synth_args -no_srlextract] < 0} {
-            error "Default runner must append output banks and enable retiming: $mock_synth_args"
+            error "Runner must use the output-only RTL and enable retiming: $mock_synth_args"
         }
         set channel [open [file join $dest size_8 extra_0 timing.xdc] r]
         set constraints [read $channel]
@@ -80,8 +81,9 @@ source [file join $single mock_synth_args.tcl]
 set generic_index [lsearch -exact $mock_synth_args -generic]
 if {[dict get $result internal] != 0 || [dict get $result tail] != 10 ||
     [dict get $result latency] != 12 ||
-    [lsearch -exact [lindex $mock_synth_args [expr {$generic_index+1}]] DISTRIBUTE=0] < 0} {
-    error "Single-candidate default did not keep all ten extra banks at the output"
+    [lsearch -exact [lindex $mock_synth_args [expr {$generic_index+1}]] EXTRA_REGS=10] < 0 ||
+    [lsearch -glob [lindex $mock_synth_args [expr {$generic_index+1}]] DISTRIBUTE=*] >= 0} {
+    error "Single candidate did not keep all ten extra banks at the output"
 }
 
 # The frequency-search entry point must propagate the same default to its
@@ -97,4 +99,22 @@ if {[dict get $result internal] != 0 || [dict get $result tail] != 5} {
 }
 source [file join $frequency_out size_8 search_500mhz config.tcl]
 if {[dict get $configuration -layout] ne "tail"} {error "Nested search did not keep tail placement"}
-puts "PASS: driver/runner orchestration, default tail placement, retiming flags, reports, failures, minima, 500 MHz constraints (mock tool only)"
+
+# Old distributed-layout commands must fail rather than recreate internal cuts.
+foreach script {timing_search.tcl fmax_search.tcl} {
+    set rejected_out [file join $scratch rejected-$script]
+    set failed [catch {exec [info nameofexecutable] [file join $test_root scripts $script] \
+        -sizes {8} -layout distributed -out $rejected_out 2>@1} message]
+    if {!$failed || [string first "Only tail layout is supported" $message] < 0 ||
+        [file exists $rejected_out]} {error "$script did not reject internal register placement before starting builds"}
+}
+set rejected_out [file join $scratch rejected-candidate]
+set failed [catch {exec [file join $scratch bin vivado] -source [file join $test_root scripts run_candidate.tcl] \
+    -tclargs -size 8 -extra 10 -layout distributed -out $rejected_out 2>@1} message]
+source [file join $rejected_out result.tcl]
+if {!$failed || [dict get $result status] ne "error" ||
+    [string first "Only tail layout is supported" [dict get $result message]] < 0 ||
+    [file exists [file join $rejected_out mock_synth_args.tcl]]} {
+    error "Single candidate did not reject internal register placement before synthesis"
+}
+puts "PASS: driver/runner orchestration, output-only placement, retiming flags, reports, failures, minima, 500 MHz constraints (mock tool only)"

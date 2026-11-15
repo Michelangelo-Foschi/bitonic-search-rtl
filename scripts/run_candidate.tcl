@@ -58,7 +58,7 @@ set failed [catch {
     set phase synthesis
     set synth_args [list -top bitonic_timing_top -part $part -mode out_of_context \
         -flatten_hierarchy full -no_srlextract -generic [list WIDTH=$width SIZE=$size \
-        EXTRA_REGS=$extra DISTRIBUTE=[expr {$layout eq "distributed" ? 1 : 0}]]]
+        EXTRA_REGS=$extra]]
     if {[dict get $cfg -retime]} {lappend synth_args -retiming} else {lappend synth_args -no_retiming}
     synth_design {*}$synth_args
     report_utilization -file [file join $out utilization_synth.rpt]

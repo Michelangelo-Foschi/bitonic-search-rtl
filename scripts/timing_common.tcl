@@ -6,21 +6,16 @@ proc bt::geometry {size width extra layout} {
         if {![string is integer -strict $value] || $value < 1} {error "size/width must be positive integers"}
     }
     if {![string is integer -strict $extra] || $extra < 0} {error "extra must be a nonnegative integer"}
-    if {$layout ni {distributed tail}} {error "layout must be distributed or tail"}
+    if {$layout ne "tail"} {error "Only tail layout is supported: all extra banks must start at the output for automatic retiming"}
     set padded 1
     set log 0
     while {$padded < $size} {set padded [expr {$padded * 2}]; incr log}
     set levels [expr {$log * ($log+1) / 2}]
-    set internal 0
-    if {$layout eq "distributed"} {set internal [expr {min($extra,max(0,$levels-1))}]}
-    set cuts {}
-    for {set level 1} {$level < $levels} {incr level} {
-        if {($level*($internal+1)/$levels) != (($level-1)*($internal+1)/$levels)} {lappend cuts $level}
-    }
+    # Keep report columns compatible; the RTL has no internal pipeline cuts.
     return [dict create size $size width $width padded $padded levels $levels \
-        comparators [expr {$padded*$levels/2}] extra $extra internal $internal \
-        tail [expr {$extra-$internal}] latency [expr {$extra+2}] cuts $cuts \
-        data_ff_upper_bound [expr {$padded*$width*(1+$internal)+$size*$width*(1+$extra-$internal)}]]
+        comparators [expr {$padded*$levels/2}] extra $extra internal 0 \
+        tail $extra latency [expr {$extra+2}] cuts {} \
+        data_ff_upper_bound [expr {$padded*$width+$size*$width*(1+$extra)}]]
 }
 
 proc bt::options {defaults args} {
